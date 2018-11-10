@@ -2,48 +2,48 @@ import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 
-# New Antecedent/Consequent objects hold universe variables and membership
-# functions
-quality = ctrl.Antecedent(np.arange(0, 11, 1), 'quality')
-service = ctrl.Antecedent(np.arange(0, 11, 1), 'service')
-tip = ctrl.Consequent(np.arange(0, 26, 1), 'tip')
+# Nazwa i zakres wartości funkcji wejściowych i wyjściowych
+sq_error = ctrl.Antecedent(np.linspace(0, 20, 201), 'sq_error')
+speed = ctrl.Antecedent(np.linspace(5, 75, 141), 'speed')
+filter_level = ctrl.Consequent(np.linspace(1, 5, 21), 'filter_level')
 
-# Auto-membership function population is possible with .automf(3, 5, or 7)
-quality.automf(3)
-service.automf(3)
+# Określenie paramtrów funkcji wyjściowych
+sq_error['low'] = fuzz.gaussmf(sq_error.universe, 0, 4)
+sq_error['medium'] = fuzz.gaussmf(sq_error.universe, 10, 4)
+sq_error['high'] = fuzz.gaussmf(sq_error.universe, 20, 4)
 
-# Custom membership functions can be built interactively with a familiar,
-# Pythonic API
-tip['low'] = fuzz.trimf(tip.universe, [0, 0, 13])
-tip['medium'] = fuzz.trimf(tip.universe, [0, 13, 25])
-tip['high'] = fuzz.trimf(tip.universe, [13, 25, 25])
+speed['low'] = fuzz.gaussmf(speed.universe, 5, 15)
+speed['medium'] = fuzz.gaussmf(speed.universe, 40, 15)
+speed['high'] = fuzz.gaussmf(speed.universe, 75, 15)
 
-# You can see how these look with .view()
-quality['average'].view()
+# Określenie parametrów funkcji wyjściowych
+filter_level['low'] = fuzz.trapmf(filter_level.universe, [1, 1, 1.25, 1.75])
+filter_level['medium-low'] = fuzz.trapmf(filter_level.universe, [1.25, 1.75, 2.25, 2.75])
+filter_level['medium'] = fuzz.trapmf(filter_level.universe, [2.25, 2.75, 3.25, 3.75])
+filter_level['medium-high'] = fuzz.trapmf(filter_level.universe, [3.25, 3.75, 4.25, 4.75])
+filter_level['high'] = fuzz.trapmf(filter_level.universe, [4.25, 4.75, 5, 5])
 
-service.view()
+# Wyświetlenie funkcji wejściowych i wyjściowych
+sq_error.view()
+speed.view()
+filter_level.view()
 
-tip.view()
-
-rule1 = ctrl.Rule(quality['poor'] | service['poor'], tip['low'])
-rule2 = ctrl.Rule(service['average'], tip['medium'])
-rule3 = ctrl.Rule(service['good'] | quality['good'], tip['high'])
+# Reguły
+rule1 = ctrl.Rule(sq_error['low'] | speed['low'], filter_level['low'])
+rule2 = ctrl.Rule(speed['medium'], filter_level['medium'])
+rule3 = ctrl.Rule(speed['high'] | sq_error['medium'], filter_level['high'])
 
 rule1.view()
 
-tipping_ctrl = ctrl.ControlSystem([rule1, rule2, rule3])
+filter_levelping_ctrl = ctrl.ControlSystem([rule1, rule2, rule3])
+filter_levelping = ctrl.ControlSystemSimulation(filter_levelping_ctrl)
 
-tipping = ctrl.ControlSystemSimulation(tipping_ctrl)
+# Obliczenie wartości funkcji wyjściowej dla zadanych paramterów wyjściowych
+filter_levelping.input['sq_error'] = 6.5
+filter_levelping.input['speed'] = 9.8
+filter_levelping.compute()
 
-# Pass inputs to the ControlSystem using Antecedent labels with Pythonic API
-# Note: if you like passing many inputs all at once, use .inputs(dict_of_data)
-tipping.input['quality'] = 6.5
-tipping.input['service'] = 9.8
-
-# Crunch the numbers
-tipping.compute()
-
-print(tipping.output['tip'])
-tip.view(sim=tipping)
+print(filter_levelping.output['filter_level'])
+filter_level.view(sim=filter_levelping)
 
 input()
