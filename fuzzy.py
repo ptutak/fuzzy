@@ -1,11 +1,16 @@
 import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
+from mayavi import mlab
+
+sq_error_space = np.linspace(0, 20, 201)
+speed_space = np.linspace(5, 75, 141)
+filter_level_space = np.linspace(1, 5, 21)
 
 # Nazwa i zakres wartości funkcji wejściowych i wyjściowych
-sq_error = ctrl.Antecedent(np.linspace(0, 20, 201), 'sq_error')
-speed = ctrl.Antecedent(np.linspace(5, 75, 141), 'speed')
-filter_level = ctrl.Consequent(np.linspace(1, 5, 21), 'filter_level', defuzzify_method='bisector')
+sq_error = ctrl.Antecedent(sq_error_space, 'sq_error')
+speed = ctrl.Antecedent(speed_space, 'speed')
+filter_level = ctrl.Consequent(filter_level_space, 'filter_level', defuzzify_method='mom')
 
 # Określenie paramtrów funkcji wyjściowych
 sq_error['low'] = fuzz.gaussmf(sq_error.universe, 0, 4)
@@ -23,10 +28,11 @@ filter_level['medium'] = fuzz.trapmf(filter_level.universe, [2.25, 2.75, 3.25, 3
 filter_level['medium-high'] = fuzz.trapmf(filter_level.universe, [3.25, 3.75, 4.25, 4.75])
 filter_level['high'] = fuzz.trapmf(filter_level.universe, [4.25, 4.75, 5, 5])
 
+
 # Wyświetlenie funkcji wejściowych i wyjściowych
-sq_error.view()
-speed.view()
-filter_level.view()
+#sq_error.view()
+#speed.view()
+#filter_level.view()
 
 # Reguły
 rule1 = ctrl.Rule(sq_error['low'], filter_level['low'])
@@ -46,6 +52,27 @@ filter_leveling.input['speed'] = 10
 filter_leveling.compute()
 
 print(filter_leveling.output['filter_level'])
-filter_level.view(sim=filter_leveling)
+# filter_level.view(sim=filter_leveling)
 
-input()
+
+# Stworzenie punktów kontrolnych
+x, y = np.meshgrid(sq_error_space, speed_space)
+z = np.zeros_like(x)
+
+
+# Wyliczenie wartości dla wszystkich punktów
+sim = ctrl.ControlSystemSimulation(filter_leveling_ctrl, flush_after_run=len(sq_error_space)*len(speed_space))
+
+for i in range(len(speed_space)):
+    for j in range(len(sq_error_space)):
+        sim.input['sq_error'] = x[i, j]
+        sim.input['speed'] = y[i, j]
+        sim.compute()
+        z[i, j] = round(sim.output['filter_level'])
+
+s = mlab.mesh(x, y, z, extent=[0, 20, 5, 75, 1, 5], opacity=0.5)
+ax = mlab.axes(xlabel='sq_error', ylabel='speed', zlabel='filter_level', line_width=1.0)
+ax.axes.font_factor = 0.5
+mlab.show()
+
+print('finished')
